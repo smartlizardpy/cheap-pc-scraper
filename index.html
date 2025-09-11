@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PC Part Finder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">PC Part Finder</h1>
+            <p class="text-gray-600">Auto-updated prices from CEX and eBay UK</p>
+        </header>
+
+        <div class="flex flex-col lg:flex-row gap-8">
+            <!-- Parts List -->
+            <div class="w-full lg:w-2/3">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex gap-4">
+                        <select id="categoryFilter" class="rounded border p-2">
+                            <option value="">All Categories</option>
+                            <option value="CPU">CPU</option>
+                            <option value="GPU">GPU</option>
+                            <option value="RAM">RAM</option>
+                        </select>
+                        <input type="text" id="searchFilter" placeholder="Search parts..." 
+                               class="rounded border p-2 flex-grow">
+                    </div>
+                    <button onclick="fetchCheapest()" 
+                            class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                        Refresh Prices
+                    </button>
+                </div>
+
+                <div id="partsList" class="grid gap-4">
+                    <!-- Parts will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Build Panel -->
+            <div class="w-full lg:w-1/3">
+                <div class="bg-white rounded-lg shadow p-6 sticky top-4">
+                    <h2 class="text-xl font-bold mb-4">Current Build</h2>
+                    <div id="buildList" class="space-y-4">
+                        <!-- Selected parts will appear here -->
+                    </div>
+                    <div id="compatibility" class="mt-4 text-sm">
+                        <!-- Compatibility messages will appear here -->
+                    </div>
+                    <div class="mt-4 pt-4 border-t">
+                        <div class="text-xl font-bold">
+                            Total: £<span id="buildTotal">0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const PAGES_BASE_URL = 'https://YOUR_USERNAME.github.io/YOUR_REPO';
+        
+        // Part database
+        const parts = [
+            {
+                sku: 'r5-3600',
+                title: 'AMD Ryzen 5 3600',
+                category: 'CPU',
+                socket: 'AM4',
+                tdp: 65,
+                price: 120,
+                shop: null,
+                link: null
+            },
+            {
+                sku: 'rx6600-8g',
+                title: 'AMD Radeon RX 6600 8GB',
+                category: 'GPU',
+                power: 132,
+                price: 200,
+                shop: null,
+                link: null
+            },
+            {
+                sku: 'ddr4-16g-3200',
+                title: '16GB (2x8GB) DDR4-3200',
+                category: 'RAM',
+                type: 'DDR4',
+                speed: 3200,
+                price: 45,
+                shop: null,
+                link: null
+            }
+        ];
+
+        // Build state
+        let currentBuild = new Set();
+
+        // Normalize text for fuzzy matching
+        function normalize(text) {
+            return text.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+        }
+
+        // Update prices from remote JSON
+        async function fetchCheapest() {
+            try {
+                const response = await fetch(`${PAGES_BASE_URL}/data/prices.json`, {
+                    cache: 'no-store'
+                });
+                const data = await response.json();
+
+                for (const item of data.items) {
+                    if (!item.best) continue;
+
+                    // Find matching part by SKU or fuzzy title match
+                    const part = parts.find(p => 
+                        p.sku === item.sku || 
+                        normalize(p.title).includes(normalize(item.best.title))
+                    );
+
+                    if (part) {
+                        part.price = item.best.price;
+                        part.shop = item.best.site;
+                        part.link = item.best.url;
+                    }
+                }
+
+                // Save to localStorage
+                localStorage.setItem('partPrices', JSON.stringify(
+                    parts.map(p => ({
+                        sku: p.sku,
+                        price: p.price,
+                        shop: p.shop,
+                        link: p.link
+                    }))
+                ));
+
+                renderParts();
+                updateBuild();
+            } catch (error) {
+                console.error('Error fetching prices:', error);
+            }
+        }
+
+        // Load saved prices from localStorage
+        function loadSavedPrices() {
+            const saved = localStorage.getItem('partPrices');
+            if (saved) {
+                const prices = JSON.parse(saved);
+                prices.forEach(saved => {
+                    const part = parts.find(p => p.sku === saved.sku);
+                    if (part) {
+                        part.price = saved.price;
+                        part.shop = saved.shop;
+                        part.link = saved.link;
+                    }
+                });
+            }
+        }
+
+        // Render parts list with filters
+        function renderParts() {
+            const category = document.getElementById('categoryFilter').value;
+            const search = normalize(document.getElementById('searchFilter').value);
+
+            const filtered = parts.filter(part => 
+                (!category || part.category === category) &&
+                (!search || normalize(part.title).includes(search))
+            );
+
+            document.getElementById('partsList').innerHTML = filtered.map(part => `
+                <div class="bg-white rounded-lg shadow p-4 hover:shadow-lg transition-shadow">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="font-bold">${part.title}</h3>
+                            <p class="text-sm text-gray-600">${part.category}</p>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-lg font-bold">£${part.price.toFixed(2)}</div>
+                            ${part.shop ? `
+                                <a href="${part.link}" target="_blank" 
+                                   class="text-sm text-blue-500 hover:underline">
+                                    View on ${part.shop}
+                                </a>
+                            ` : ''}
+                        </div>
+                    </div>
+                    <button onclick="togglePart('${part.sku}')"
+                            class="mt-4 w-full px-4 py-2 rounded ${
+                                currentBuild.has(part.sku)
+                                    ? 'bg-red-500 hover:bg-red-600 text-white'
+                                    : 'bg-green-500 hover:bg-green-600 text-white'
+                            }">
+                        ${currentBuild.has(part.sku) ? 'Remove' : 'Add to Build'}
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // Update build panel
+        function updateBuild() {
+            const buildParts = parts.filter(p => currentBuild.has(p.sku));
+            
+            document.getElementById('buildList').innerHTML = buildParts.map(part => `
+                <div class="flex justify-between">
+                    <span>${part.title}</span>
+                    <span>£${part.price.toFixed(2)}</span>
+                </div>
+            `).join('');
+
+            const total = buildParts.reduce((sum, part) => sum + part.price, 0);
+            document.getElementById('buildTotal').textContent = total.toFixed(2);
+
+            // Basic compatibility checks
+            const messages = [];
+            const cpu = buildParts.find(p => p.category === 'CPU');
+            const gpu = buildParts.find(p => p.category === 'GPU');
+            
+            if (cpu && gpu) {
+                const totalPower = cpu.tdp + gpu.power;
+                if (totalPower > 500) {
+                    messages.push('⚠️ High power consumption - 600W+ PSU recommended');
+                }
+            }
+
+            document.getElementById('compatibility').innerHTML = messages.map(msg => 
+                `<div class="text-yellow-600">${msg}</div>`
+            ).join('') || '<div class="text-green-600">✓ No compatibility issues</div>';
+        }
+
+        // Toggle part selection
+        function togglePart(sku) {
+            if (currentBuild.has(sku)) {
+                currentBuild.delete(sku);
+            } else {
+                const part = parts.find(p => p.sku === sku);
+                const existing = parts.filter(p => currentBuild.has(p.sku));
+
+                // Prevent adding multiple parts of same category (except RAM)
+                if (part.category !== 'RAM' && 
+                    existing.some(p => p.category === part.category)) {
+                    return;
+                }
+                currentBuild.add(sku);
+            }
+            renderParts();
+            updateBuild();
+        }
+
+        // Initial setup
+        document.getElementById('categoryFilter').onchange = renderParts;
+        document.getElementById('searchFilter').oninput = renderParts;
+        loadSavedPrices();
+        renderParts();
+        updateBuild();
+        fetchCheapest();
+    </script>
+</body>
+</html>

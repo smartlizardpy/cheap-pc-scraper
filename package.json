@@ -1,0 +1,13 @@
+{
+  "name": "pc-part-finder",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "scrape": "node scraper.mjs",
+    "test": "node scraper.mjs --dry"
+  },
+  "dependencies": {
+    "playwright": "^1.38.0",
+    "fast-levenshtein": "^3.0.0"
+  }
+}

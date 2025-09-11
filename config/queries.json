@@ -1,0 +1,17 @@
+[
+  {
+    "sku": "r5-3600",
+    "query": "Ryzen 5 3600",
+    "category": "CPU"
+  },
+  {
+    "sku": "rx6600-8g",
+    "query": "Radeon RX 6600 8GB",
+    "category": "GPU"
+  },
+  {
+    "sku": "ddr4-16g-3200",
+    "query": "16GB DDR4 3200",
+    "category": "RAM"
+  }
+]

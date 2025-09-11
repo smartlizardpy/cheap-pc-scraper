@@ -1,0 +1,45 @@
+name: PC Parts Price Scraper
+
+on:
+  schedule:
+    - cron: '7 */6 * * *'  # Every 6 hours at 7 minutes past
+  workflow_dispatch: {}     # Manual trigger
+  repository_dispatch:      # API trigger
+    types: [scrape_now]
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20'
+        
+    - name: Install dependencies
+      run: |
+        npm ci
+        npx playwright install chromium --with-deps
+        
+    - name: Run scraper
+      env:
+        SKU: ${{ github.event.client_payload.sku }}
+        QUERY: ${{ github.event.client_payload.query }}
+      run: node scraper.mjs
+      
+    - name: Check for changes
+      id: check
+      run: |
+        git diff --quiet data/prices.json || echo "changes=true" >> $GITHUB_OUTPUT
+        
+    - name: Commit and push if changed
+      if: steps.check.outputs.changes == 'true'
+      run: |
+        git config --local user.email "actions@github.com"
+        git config --local user.name "GitHub Actions"
+        git add data/prices.json
+        git commit -m "Update prices [skip ci]"
+        git push

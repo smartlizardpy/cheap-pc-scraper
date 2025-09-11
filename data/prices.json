@@ -1,0 +1,19 @@
+{
+  "generatedAt": "2025-09-11T00:00:00Z",
+  "items": [
+    {
+      "sku": "r5-3600",
+      "query": "Ryzen 5 3600",
+      "category": "CPU",
+      "best": {
+        "site": "placeholder",
+        "title": "placeholder",
+        "url": "placeholder",
+        "price": 0,
+        "currency": "GBP",
+        "score": 1.0
+      },
+      "alternatives": []
+    }
+  ]
+}
